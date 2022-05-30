@@ -66,23 +66,23 @@ class NeXtVLAD(nn.Module):
         # todo mask
         inputs = self.expansion_linear(inputs)
         attention = self.group_attention(inputs)
-        attention = torch.sigmoid(attention)
-        attention = attention.reshape([-1, inputs.size(1) * self.groups, 1])
-        reshaped_input = inputs.reshape([-1, self.expansion_size * self.feature_size])
-        activation = self.cluster_linear(reshaped_input)
-        activation = activation.reshape([-1, inputs.size(1) * self.groups, self.cluster_size])
-        activation = torch.softmax(activation, dim=-1)
-        activation = activation * attention
-        a_sum = activation.sum(-2, keepdim=True)
-        a = a_sum * self.cluster_weight
-        activation = activation.permute(0, 2, 1).contiguous()
-        reshaped_input = inputs.reshape([-1, inputs.shape[1] * self.groups, self.new_feature_size])
-        vlad = torch.matmul(activation, reshaped_input)
-        vlad = vlad.permute(0, 2, 1).contiguous()
+        attention = torch.sigmoid(attention) #[B,P,G]
+        attention = attention.reshape([-1, inputs.size(1) * self.groups, 1])#[B,P*G,1]
+        reshaped_input = inputs.reshape([-1, self.expansion_size * self.feature_size])#[B*P,lamda*N]
+        activation = self.cluster_linear(reshaped_input)#[B*P,G*K]
+        activation = activation.reshape([-1, inputs.size(1) * self.groups, self.cluster_size])#[B,P*G,K]
+        activation = torch.softmax(activation, dim=-1) #
+        activation = activation * attention # [B,P*G,K]权重矩阵
+        a_sum = activation.sum(-2, keepdim=True) #[B,1,K]
+        a = a_sum * self.cluster_weight #[B,lamda*N/G,K]
+        activation = activation.permute(0, 2, 1).contiguous() #[B,K,P*G]
+        reshaped_input = inputs.reshape([-1, inputs.shape[1] * self.groups, self.new_feature_size]) # [B,P*G,lamda*N/G]
+        vlad = torch.matmul(activation, reshaped_input) #[B,K,lamda*N/G]
+        vlad = vlad.permute(0, 2, 1).contiguous() #[B,lamda*N/G,K]
         vlad = F.normalize(vlad - a, p=2, dim=1)
-        vlad = vlad.reshape([-1, self.cluster_size * self.new_feature_size])
+        vlad = vlad.reshape([-1, self.cluster_size * self.new_feature_size]) #[B,vec]
         vlad = self.dropout(vlad)
-        vlad = self.fc(vlad)
+        vlad = self.fc(vlad) #[B,outputsize]
         return vlad
 
 

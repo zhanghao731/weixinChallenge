@@ -121,10 +121,17 @@ class MultiModalDataset(Dataset):
 
     def __getitem__(self, idx: int) -> dict:
         # Step 1, load visual features from zipfile.
+        title=self.anns[idx]['title']
+        asr=self.anns[idx]['asr']
+        ocr_lis=self.anns[idx]['ocr']
+        ocr=''
+        for d in ocr_lis:
+            ocr+=d['text']
+
         frame_input, frame_mask = self.get_visual_feats(idx)
 
         # Step 2, load title tokens
-        title_input, title_mask = self.tokenize_text(self.anns[idx]['title'])
+        title_input, title_mask = self.tokenize_text(title+asr+ocr)
 
         # Step 3, summarize into a dictionary
         data = dict(
