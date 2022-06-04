@@ -4,14 +4,15 @@ import random
 import numpy as np
 from sklearn.metrics import f1_score, accuracy_score
 import torch
-from transformers import AdamW, get_linear_schedule_with_warmup
+from transformers import get_linear_schedule_with_warmup
 
 from category_id_map import lv2id_to_lv1id
 
 
 def setup_device(args):
-    args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    args.n_gpu = torch.cuda.device_count()
+    # args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # args.n_gpu = torch.cuda.device_count()
+    args.device=torch.device('cuda',args.GPU_id)
 
 
 def setup_seed(args):
@@ -37,7 +38,7 @@ def build_optimizer(args, model):
          'weight_decay': args.weight_decay},
         {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
                                                 num_training_steps=args.max_steps)
     return optimizer, scheduler

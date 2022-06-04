@@ -4,8 +4,9 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser(description="Baseline for Weixin Challenge 2022")
 
+    parser.add_argument('--GPU_id',type = int, default = 0)
     parser.add_argument("--seed", type=int, default=2022, help="random seed.")
-    parser.add_argument('--dropout', type=float, default=0.3, help='dropout ratio')
+    parser.add_argument('--dropout', type=float, default=0.2, help='dropout ratio')
 
     # ========================= Data Configs ==========================
     parser.add_argument('--train_annotation', type=str, default='data/annotations/labeled.json')
@@ -38,7 +39,7 @@ def parse_args():
     # ========================== Title BERT =============================
     parser.add_argument('--bert_dir', type=str, default='hfl/chinese-macbert-base')
     parser.add_argument('--bert_cache', type=str, default='data/cache')
-    parser.add_argument('--bert_seq_length', type=int, default=256)
+    parser.add_argument('--bert_seq_length', type=int, default=480)
     parser.add_argument('--bert_learning_rate', type=float, default=3e-5)
     parser.add_argument('--bert_warmup_steps', type=int, default=5000)
     parser.add_argument('--bert_max_steps', type=int, default=30000)
