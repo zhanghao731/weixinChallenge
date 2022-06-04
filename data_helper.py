@@ -131,14 +131,14 @@ class MultiModalDataset(Dataset):
         frame_input, frame_mask = self.get_visual_feats(idx)
 
         # Step 2, load title tokens
-        title_input, title_mask = self.tokenize_text(title+asr+ocr)
+        text_input, text_mask = self.tokenize_text(title+asr+ocr)
 
         # Step 3, summarize into a dictionary
         data = dict(
             frame_input=frame_input,
             frame_mask=frame_mask,
-            title_input=title_input,
-            title_mask=title_mask
+            text_input=text_input,
+            text_mask=text_mask
         )
 
         # Step 4, load label if not test mode
