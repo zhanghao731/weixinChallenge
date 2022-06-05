@@ -17,10 +17,10 @@ def create_dataloaders(args):
     size = len(dataset)
     val_size = int(size * args.val_ratio)
 
-    # train_dataset, val_dataset = torch.utils.data.random_split(dataset, [size - val_size, val_size],
-    #                                                            generator = torch.Generator().manual_seed(args.seed))
-    train_index, val_index = [i for i in range(size - val_size)], [i for i in range(size - val_size, size)]
-    train_dataset, val_dataset = Subset(dataset, train_index), Subset(dataset, val_index)
+    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [size - val_size, val_size],
+                                                               generator = torch.Generator().manual_seed(args.seed))
+    # train_index, val_index = [i for i in range(size - val_size)], [i for i in range(size - val_size, size)]
+    # train_dataset, val_dataset = Subset(dataset, train_index), Subset(dataset, val_index)
     if args.num_workers > 0:
         dataloader_class = partial(DataLoader, pin_memory = True, num_workers = args.num_workers,
                                    prefetch_factor = args.prefetch)
@@ -135,7 +135,7 @@ class MultiModalDataset(Dataset):
         frame_input, frame_mask = self.get_visual_feats(idx)
 
         # Step 2, load title tokens
-        text_input, text_mask = self.tokenize_text('[SEP]' + title + asr + ocr)
+        text_input, text_mask = self.tokenize_text(title + asr + ocr)
 
         # Step 3, summarize into a dictionary
         data = dict(

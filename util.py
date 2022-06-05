@@ -12,7 +12,7 @@ from category_id_map import lv2id_to_lv1id
 def setup_device(args):
     # args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # args.n_gpu = torch.cuda.device_count()
-    args.device=torch.device('cuda',args.GPU_id)
+    args.device = torch.device('cuda', args.GPU_id)
 
 
 def setup_seed(args):
@@ -22,9 +22,9 @@ def setup_seed(args):
 
 
 def setup_logging():
-    logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S',
-                        level=logging.INFO)
+    logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(message)s',
+                        datefmt = '%Y-%m-%d %H:%M:%S',
+                        level = logging.INFO)
     logger = logging.getLogger(__name__)
 
     return logger
@@ -33,14 +33,25 @@ def setup_logging():
 def build_optimizer(args, model):
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ['bias', 'LayerNorm.weight']
+    # optimizer_grouped_parameters = [
+    #     {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+    #      'weight_decay': args.weight_decay},
+    #     {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    # ]
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+        {'params': [p for n, p in model.named_parameters() if 'bert_base' in n and not any(nd in n for nd in no_decay)],
+         'lr': args.bert_learning_rate, 'weight_decay': args.weight_decay},
+        {'params': [p for n, p in model.named_parameters() if 'bert_base' in n and any(nd in n for nd in no_decay)],
+         'lr': args.bert_learning_rate, 'weight_decay': 0.0},
+        {'params': [p for n, p in model.named_parameters() if
+                    'bert_base' not in n and not any(nd in n for nd in no_decay)], 'lr': args.learning_rate,
          'weight_decay': args.weight_decay},
-        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-    ]
-    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
-                                                num_training_steps=args.max_steps)
+        {'params': [p for n, p in model.named_parameters() if
+                    'bert_base' not in n and any(nd in n for nd in no_decay)], 'lr': args.learning_rate,
+         'weight_decay': 0.0}]
+    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, eps = args.adam_epsilon)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps = args.warmup_steps,
+                                                num_training_steps = args.max_steps)
     return optimizer, scheduler
 
 
@@ -50,10 +61,10 @@ def evaluate(predictions, labels):
     lv1_preds = [lv2id_to_lv1id(lv2id) for lv2id in predictions]
     lv1_labels = [lv2id_to_lv1id(lv2id) for lv2id in labels]
 
-    lv2_f1_micro = f1_score(labels, predictions, average='micro')
-    lv2_f1_macro = f1_score(labels, predictions, average='macro')
-    lv1_f1_micro = f1_score(lv1_labels, lv1_preds, average='micro')
-    lv1_f1_macro = f1_score(lv1_labels, lv1_preds, average='macro')
+    lv2_f1_micro = f1_score(labels, predictions, average = 'micro')
+    lv2_f1_macro = f1_score(labels, predictions, average = 'macro')
+    lv1_f1_micro = f1_score(lv1_labels, lv1_preds, average = 'micro')
+    lv1_f1_macro = f1_score(lv1_labels, lv1_preds, average = 'macro')
     mean_f1 = (lv2_f1_macro + lv1_f1_macro + lv1_f1_micro + lv2_f1_micro) / 4.0
 
     eval_results = {'lv1_acc': accuracy_score(lv1_labels, lv1_preds),

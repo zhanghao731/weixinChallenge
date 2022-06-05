@@ -9,7 +9,7 @@ from category_id_map import CATEGORY_ID_LIST
 class MultiModal(nn.Module):
     def __init__(self, args):
         super().__init__()
-        self.bert = BertModel.from_pretrained(args.bert_dir, cache_dir = args.bert_cache)
+        self.bert_base = BertModel.from_pretrained(args.bert_dir, cache_dir = args.bert_cache)
         self.bert_config = BertConfig.from_pretrained(args.bert_dir, cache_dir = args.bert_cache)
         args.out_size = self.bert_config.hidden_size
 
@@ -32,25 +32,26 @@ class MultiModal(nn.Module):
 
     def forward(self, inputs, inference = False):
         # bert_embedding = self.bert(inputs['title_input'], inputs['title_mask'])['pooler_output']
-        text_embedding = self.bert.embeddings(input_ids = inputs['text_input'])
+        text_embedding = self.bert_base.embeddings(input_ids = inputs['text_input'])
         vision_embedding = self.relu(self.vision_fc(inputs['frame_input']))
-        vision_embedding = self.bert.embeddings(inputs_embeds = vision_embedding)
+        vision_embedding = self.bert_base.embeddings(inputs_embeds = vision_embedding)
 
         # 拼接text和vision embedding
-        # fusion_embedding = torch.cat((text_embedding, vision_embedding), dim = 1)
-        cls_emb = text_embedding[:, 0:1, :]
-        text_emb = text_embedding[:, 1:, :]
-
-        cls_mask = inputs['text_mask'][:, 0:1]
-        text_mask = inputs['text_mask'][:, 1:]
-        fusion_embedding = torch.cat([cls_emb, vision_embedding, text_emb], dim = 1)
+        fusion_embedding = torch.cat((text_embedding, vision_embedding), dim = 1)
+        # cls_emb = text_embedding[:, 0:1, :]
+        # text_emb = text_embedding[:, 1:, :]
+        #
+        # cls_mask = inputs['text_mask'][:, 0:1]
+        # text_mask = inputs['text_mask'][:, 1:]
+        # fusion_embedding = torch.cat([cls_emb, vision_embedding, text_emb], dim = 1)
 
         # 拼接attention_mask
-        fusion_attention_mask = torch.cat([cls_mask, inputs['frame_mask'], text_mask], dim = 1)
+        # fusion_attention_mask = torch.cat([cls_mask, inputs['frame_mask'], text_mask], dim = 1)
+        fusion_attention_mask = torch.cat((inputs['text_mask'], inputs['frame_mask']), dim = 1)
         attention_mask = fusion_attention_mask[:, None, None, :]
         attention_mask = (1.0 - attention_mask) * (-10000.0)
 
-        encoder_outputs = self.bert.encoder(fusion_embedding, attention_mask = attention_mask)['last_hidden_state']
+        encoder_outputs = self.bert_base.encoder(fusion_embedding, attention_mask = attention_mask)['last_hidden_state']
         # encoder_outputs_mean = (encoder_outputs * fusion_attention_mask.unsqueeze(-1)).sum(
         #     1) / fusion_attention_mask.sum(1).unsqueeze(-1)
         encoder_outputs_mean = torch.mean(encoder_outputs, dim = 1)
@@ -170,14 +171,14 @@ class ClassificationHead(nn.Module):
         self.dropout = nn.Dropout(args.dropout)
         self.linear_2 = nn.Linear(768, 256)
         self.norm_3 = nn.BatchNorm1d(256)
-        self.linear_out = nn.Linear(256, len(CATEGORY_ID_LIST))
+        self.linear_out = nn.Linear(768, len(CATEGORY_ID_LIST))
 
     def forward(self, features):
         x = self.norm_1(features)
         x = self.dropout(x)
-        x = self.linear_2(x)
-        x = torch.relu(self.norm_3(x))
-        x = self.dropout(x)
+        # x = self.linear_2(x)
+        # x = torch.relu(self.norm_3(x))
+        # x = self.dropout(x)
         # x=self.linear_2(x)
         # x=torch.relu(self.norm_3(x))
         # x=self.dropout(x)
