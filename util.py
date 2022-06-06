@@ -32,10 +32,16 @@ def build_optimizer(args, model):
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+        {'params': [p for n, p in model.named_parameters() if 'bert' in n and not any(nd in n for nd in no_decay)],
+         'lr': args.bert_learning_rate, 'weight_decay': args.weight_decay},
+        {'params': [p for n, p in model.named_parameters() if 'bert' in n and any(nd in n for nd in no_decay)],
+         'lr': args.bert_learning_rate, 'weight_decay': 0.0},
+        {'params': [p for n, p in model.named_parameters() if
+                    'bert' not in n and not any(nd in n for nd in no_decay)], 'lr': args.learning_rate,
          'weight_decay': args.weight_decay},
-        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-    ]
+        {'params': [p for n, p in model.named_parameters() if
+                    'bert' not in n and any(nd in n for nd in no_decay)], 'lr': args.learning_rate,
+         'weight_decay': 0.0}]
     optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
                                                 num_training_steps=args.max_steps)
