@@ -33,7 +33,8 @@ def validate(model, val_dataloader, args):
 def train_and_validate(args):
     # 1. load data
     train_dataloader, val_dataloader = create_dataloaders(args)
-
+    num_total_steps = len(train_dataloader) * args.max_epochs
+    # args.warmup_steps = args.warmup_ratio * num_total_steps
     # 2. build model and optimizers
     model = MultiModal(args)
     optimizer, scheduler = build_optimizer(args, model)
@@ -41,11 +42,11 @@ def train_and_validate(args):
     #     model = torch.nn.parallel.DataParallel(model.to(args.device))
 
     # 3. training
+    # todo semi-supervised learning
     model.to(args.device)
     step = 0
     best_score = args.best_score
     start_time = time.time()
-    num_total_steps = len(train_dataloader) * args.max_epochs
     for epoch in range(args.max_epochs):
         for batch in train_dataloader:
             model.train()
@@ -65,20 +66,20 @@ def train_and_validate(args):
                 remaining_time = time_per_step * (num_total_steps - step)
                 remaining_time = time.strftime('%H:%M:%S', time.gmtime(remaining_time))
                 logging.info(
-                    f"Epoch {epoch+1} step {step} eta {remaining_time}: loss {loss:.3f}, accuracy {accuracy:.3f}")
+                    f"Epoch {epoch + 1} step {step} eta {remaining_time}: loss {loss:.3f}, accuracy {accuracy:.3f}")
 
         # 4. validation
         loss, results = validate(model, val_dataloader, args)
         results = {k: round(v, 4) for k, v in results.items()}
-        logging.info(f"Epoch {epoch+1} step {step}: loss {loss:.3f}, {results}")
+        logging.info(f"Epoch {epoch + 1} step {step}: loss {loss:.3f}, {results}")
 
         # 5. save checkpoint
         mean_f1 = results['mean_f1']
         if mean_f1 > best_score:
             best_score = mean_f1
             state_dict = model.module.state_dict() if args.device == 'cuda' else model.state_dict()
-            torch.save({'epoch': epoch+1, 'model_state_dict': state_dict, 'mean_f1': mean_f1},
-                       f'{args.savedmodel_path}/model_epoch_{epoch+1}_mean_f1_{mean_f1}.bin')
+            torch.save({'epoch': epoch + 1, 'model_state_dict': state_dict, 'mean_f1': mean_f1},
+                       f'{args.savedmodel_path}/model_epoch_{epoch + 1}_mean_f1_{mean_f1}.bin')
 
 
 def main():

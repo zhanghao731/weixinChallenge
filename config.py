@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument('--warmup_steps', default = 1000, type = int,
                         help = "warm ups for parameters not in bert or vit")
     parser.add_argument('--minimum_lr', default = 0., type = float, help = 'minimum learning rate')
-    parser.add_argument('--learning_rate', default = 5e-5, type = float, help = 'initial learning rate')
+    parser.add_argument('--learning_rate', default = 8e-5, type = float, help = 'initial learning rate')
     parser.add_argument("--weight_decay", default = 0.01, type = float, help = "Weight deay if we apply some.")
     parser.add_argument("--adam_epsilon", default = 1e-6, type = float, help = "Epsilon for Adam optimizer.")
 
@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument('--bert_dir', type = str, default = 'hfl/chinese-macbert-base')
     parser.add_argument('--bert_cache', type = str, default = 'data/cache')
     parser.add_argument('--bert_seq_length', type = int, default = 512)
-    parser.add_argument('--bert_learning_rate', type = float, default = 3e-5)
+    parser.add_argument('--bert_learning_rate', type = float, default = 2e-5)
     parser.add_argument('--bert_warmup_steps', type = int, default = 5000)
     parser.add_argument('--bert_max_steps', type = int, default = 30000)
     parser.add_argument("--bert_hidden_dropout_prob", type = float, default = 0.1)
@@ -59,4 +59,9 @@ def parse_args():
     # ========================== Fusion Layer =============================
     parser.add_argument('--fc_size', type = int, default = 512, help = "linear size before final linear")
 
+    # ========================== Bi-modal =============================
+    parser.add_argument('--N', type = int, default = 1, help = 'number of Bi-modal layers of a model')
+    parser.add_argument('--H', type = int, default = 8, help = 'number of heads in multihead attention')
+    parser.add_argument('--d_ff_v', type = int, default = 512)
+    parser.add_argument('--d_ff_t', type = int, default = 512)
     return parser.parse_args()

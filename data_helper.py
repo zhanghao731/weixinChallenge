@@ -6,35 +6,51 @@ from functools import partial
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
+from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler, Subset
 from transformers import BertTokenizer
 
 from category_id_map import category_id_to_lv2id
+from sklearn.model_selection import StratifiedKFold
 
 
 def create_dataloaders(args):
     dataset = MultiModalDataset(args, args.train_annotation, args.train_zip_feats)
-    size = len(dataset)
-    val_size = int(size * args.val_ratio)
-    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [size - val_size, val_size],
-                                                               generator=torch.Generator().manual_seed(args.seed))
+
+    # stratifiedKFold split
+    X, y = [i for i in range(100000)], []
+    with open(args.train_annotation, 'r', encoding = 'utf8') as f:
+        anns = json.load(f)
+    for item in anns:
+        y.append(category_id_to_lv2id(item['category_id']))
+    assert len(X) == len(y)
+    train_index, val_index = None, None
+    skf = StratifiedKFold(n_splits = 10, shuffle = True, random_state = args.seed)
+    for fold, (train, val) in enumerate(skf.split(X, y)):
+        train_index, val_index = train, val
+        break
+    train_dataset, val_dataset = Subset(dataset, train_index), Subset(dataset, val_index)
+    # size = len(dataset)
+    # val_size = int(size * args.val_ratio)
+    # train_dataset, val_dataset = torch.utils.data.random_split(dataset, [size - val_size, val_size],
+    #                                                            generator = torch.Generator().manual_seed(args.seed))
 
     if args.num_workers > 0:
-        dataloader_class = partial(DataLoader, pin_memory=True, num_workers=args.num_workers, prefetch_factor=args.prefetch)
+        dataloader_class = partial(DataLoader, pin_memory = True, num_workers = args.num_workers,
+                                   prefetch_factor = args.prefetch)
     else:
         # single-thread reading does not support prefetch_factor arg
-        dataloader_class = partial(DataLoader, pin_memory=True, num_workers=0)
+        dataloader_class = partial(DataLoader, pin_memory = True, num_workers = 0)
 
     train_sampler = RandomSampler(train_dataset)
     val_sampler = SequentialSampler(val_dataset)
     train_dataloader = dataloader_class(train_dataset,
-                                        batch_size=args.batch_size,
-                                        sampler=train_sampler,
-                                        drop_last=True)
+                                        batch_size = args.batch_size,
+                                        sampler = train_sampler,
+                                        drop_last = False)
     val_dataloader = dataloader_class(val_dataset,
-                                      batch_size=args.val_batch_size,
-                                      sampler=val_sampler,
-                                      drop_last=False)
+                                      batch_size = args.val_batch_size,
+                                      sampler = val_sampler,
+                                      drop_last = False)
     return train_dataloader, val_dataloader
 
 
@@ -66,10 +82,10 @@ class MultiModalDataset(Dataset):
         else:
             self.handles = zipfile.ZipFile(self.zip_feat_path, 'r')
         # load annotations
-        with open(ann_path, 'r', encoding='utf8') as f:
+        with open(ann_path, 'r', encoding = 'utf8') as f:
             self.anns = json.load(f)
         # initialize the text tokenizer
-        self.tokenizer = BertTokenizer.from_pretrained(args.bert_dir, use_fast=True, cache_dir=args.bert_cache)
+        self.tokenizer = BertTokenizer.from_pretrained(args.bert_dir, use_fast = True, cache_dir = args.bert_cache)
 
     def __len__(self) -> int:
         return len(self.anns)
@@ -84,12 +100,12 @@ class MultiModalDataset(Dataset):
             handle = self.handles[worker_id]
         else:
             handle = self.handles
-        raw_feats = np.load(BytesIO(handle.read(name=f'{vid}.npy')), allow_pickle=True)
+        raw_feats = np.load(BytesIO(handle.read(name = f'{vid}.npy')), allow_pickle = True)
         raw_feats = raw_feats.astype(np.float32)  # float16 to float32
         num_frames, feat_dim = raw_feats.shape
 
-        feat = np.zeros((self.max_frame, feat_dim), dtype=np.float32)
-        mask = np.ones((self.max_frame,), dtype=np.int32)
+        feat = np.zeros((self.max_frame, feat_dim), dtype = np.float32)
+        mask = np.ones((self.max_frame,), dtype = np.int32)
         if num_frames <= self.max_frame:
             feat[:num_frames] = raw_feats
             mask[num_frames:] = 0
@@ -114,31 +130,32 @@ class MultiModalDataset(Dataset):
         return feat, mask
 
     def tokenize_text(self, text: str) -> tuple:
-        encoded_inputs = self.tokenizer(text, max_length=self.bert_seq_length, padding='max_length', truncation=True)
+        encoded_inputs = self.tokenizer(text, max_length = self.bert_seq_length, padding = 'max_length',
+                                        truncation = True)
         input_ids = torch.LongTensor(encoded_inputs['input_ids'])
         mask = torch.LongTensor(encoded_inputs['attention_mask'])
         return input_ids, mask
 
     def __getitem__(self, idx: int) -> dict:
         # Step 1, load visual features from zipfile.
-        title=self.anns[idx]['title']
-        asr=self.anns[idx]['asr']
-        ocr_lis=self.anns[idx]['ocr']
-        ocr=''
+        title = self.anns[idx]['title']
+        asr = self.anns[idx]['asr']
+        ocr_lis = self.anns[idx]['ocr']
+        ocr = ''
         for d in ocr_lis:
-            ocr+=d['text']
+            ocr += d['text']
 
         frame_input, frame_mask = self.get_visual_feats(idx)
 
         # Step 2, load title tokens
-        text_input, text_mask = self.tokenize_text(title+asr+ocr)
+        text_input, text_mask = self.tokenize_text(title + asr + ocr)
 
         # Step 3, summarize into a dictionary
         data = dict(
-            frame_input=frame_input,
-            frame_mask=frame_mask,
-            text_input=text_input,
-            text_mask=text_mask
+            frame_input = frame_input,
+            frame_mask = frame_mask,
+            text_input = text_input,
+            text_mask = text_mask
         )
 
         # Step 4, load label if not test mode

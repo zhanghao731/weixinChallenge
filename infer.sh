@@ -1,0 +1,1 @@
+python inference.py --GPU_id 1 --ckpt_file /data/data/baohan/c4/save/v2/model_epoch_4_mean_f1_0.663.bin
